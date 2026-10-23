@@ -197,7 +197,7 @@ The dataset is described as synthetic and should not be treated as real patient 
 
 ## 👨‍💻 Author
 
-**Ahsan Ali**
+**MD Ahsan Ali**
 
 Data Science Student | Python | Data Analytics | Machine Learning
 
