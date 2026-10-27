@@ -107,3 +107,107 @@ print(
     negative_bills.groupby("Admission Type")["Billing Amount"]
     .agg(["count", "mean", "min", "max"]) )
 
+## EDA 
+
+# STEP 9: Exploratory Data Analysis (EDA)
+
+# 1. Patient Age and Gender
+print("\n===== AGE AND GENDER ANALYSIS =====")
+
+print("\nAge Summary:")
+print(cleaned["Age"].describe())
+
+print("\nGender Distribution:")
+print(cleaned["Gender"].value_counts())
+
+print("\nGender Percentage:")
+print((cleaned["Gender"].value_counts(normalize=True) * 100).round(2))
+
+age_groups = pd.cut(
+    cleaned["Age"],
+    bins=[0, 18, 35, 50, 65, 100],
+    labels=["0-18", "19-35", "36-50", "51-65", "Above 65"])
+
+print("\nAge Group Distribution:")
+print(age_groups.value_counts().sort_index())
+
+# 2. Medical Conditions
+print("\n===== MEDICAL CONDITION ANALYSIS =====")
+
+print(cleaned["Medical Condition"].value_counts())
+
+print("\nAverage Age by Medical Condition:")
+print(cleaned.groupby("Medical Condition")["Age"].mean().round(2))
+
+# 3. Admission Type
+print("\n===== ADMISSION TYPE ANALYSIS =====")
+
+print(cleaned["Admission Type"].value_counts())
+
+print("\nAverage Billing by Admission Type:")
+print(
+    cleaned.groupby("Admission Type")["Billing Amount"]
+    .mean()
+    .round(2))
+
+# 4. Hospital Stay Duration
+print("\n===== HOSPITAL STAY ANALYSIS =====")
+
+admission_date = pd.to_datetime(
+    cleaned["Date of Admission"], errors="coerce")
+discharge_date = pd.to_datetime(
+    cleaned["Discharge Date"], errors="coerce")
+
+cleaned["Stay Days"] = (discharge_date - admission_date).dt.days
+
+print(cleaned["Stay Days"].describe())
+
+print("\nInvalid Stay Records:")
+print((cleaned["Stay Days"] < 0).sum())
+
+print("Missing Stay Values:", cleaned["Stay Days"].isnull().sum())
+print("Zero-Day Stays:", (cleaned["Stay Days"] == 0).sum())
+
+# 5. Billing Analysis
+print("\n===== BILLING ANALYSIS =====")
+
+print(cleaned["Billing Amount"].describe())
+
+print("\nNegative Billing:", (cleaned["Billing Amount"] < 0).sum())
+print("Zero Billing:", (cleaned["Billing Amount"] == 0).sum())
+
+# 6. Insurance Provider Analysis
+print("\n===== INSURANCE PROVIDER ANALYSIS =====")
+
+print("\nPatient Records by Insurance Provider:")
+print(cleaned["Insurance Provider"].value_counts())
+
+print("\nBilling by Insurance Provider:")
+print(
+    cleaned.groupby("Insurance Provider")["Billing Amount"]
+    .agg(["count", "mean", "median"])
+    .round(2)
+)
+
+# 7. Test Results
+print("\n===== TEST RESULT ANALYSIS =====")
+
+print(cleaned["Test Results"].value_counts())
+
+print("\nTest Result Percentage:")
+print((cleaned["Test Results"].value_counts(normalize=True) * 100).round(2))
+
+# 8. Feature Relationships
+print("\n===== FEATURE RELATIONSHIPS =====")
+
+print("\nAverage Billing by Medical Condition:")
+print(
+    cleaned.groupby("Medical Condition")["Billing Amount"]
+    .mean()
+    .round(2))
+
+print("\nAverage Stay by Admission Type:")
+print(cleaned.groupby("Admission Type")["Stay Days"].mean().round(2))
+
+print("\nNumerical Correlation:")
+print(cleaned[["Age", "Billing Amount", "Stay Days"]].corr().round(3))
