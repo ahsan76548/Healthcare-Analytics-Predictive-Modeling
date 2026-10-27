@@ -82,3 +82,28 @@ print(cleaned.shape)
 
 print("\nCleaned dataset saved successfully!")
 
+# STEP 7: Analyze negative billing amounts
+print("\n===== NEGATIVE BILLING ANALYSIS =====")
+negative_bills = cleaned[cleaned["Billing Amount"] < 0]
+print("Negative billing records:", len(negative_bills))
+print("\nSample negative billing records:")
+print(
+    negative_bills[
+        ["Age", "Medical Condition", "Billing Amount"]].head(10) )
+print("\nNegative billing summary:")
+print(negative_bills["Billing Amount"].describe())
+
+# STEP 8: Check details of negative billing records
+print("\n===== NEGATIVE BILLING DETAILS =====")
+negative_bills = cleaned[cleaned["Billing Amount"] < 0]
+print("\nNegative billing by admission type:")
+print(negative_bills["Admission Type"].value_counts())
+print("\nNegative billing by insurance provider:")
+print(negative_bills["Insurance Provider"].value_counts())
+print("\nNegative billing by test results:")
+print(negative_bills["Test Results"].value_counts())
+print("\nBilling amount by admission type:")
+print(
+    negative_bills.groupby("Admission Type")["Billing Amount"]
+    .agg(["count", "mean", "min", "max"]) )
+
