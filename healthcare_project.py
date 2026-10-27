@@ -211,3 +211,46 @@ print(cleaned.groupby("Admission Type")["Stay Days"].mean().round(2))
 
 print("\nNumerical Correlation:")
 print(cleaned[["Age", "Billing Amount", "Stay Days"]].corr().round(3))
+
+## STEP 10: Feature Engineering
+
+print("\n===== FEATURE ENGINEERING =====")
+
+# 1. Create Admission Month
+cleaned["Admission Month"] = pd.to_datetime(
+    cleaned["Date of Admission"], errors="coerce"
+).dt.month
+
+# 2. Reuse Stay Days calculated in EDA
+cleaned["Length of Stay"] = cleaned["Stay Days"]
+
+# 3. Create Age Groups
+cleaned["Age Group"] = pd.cut(
+    cleaned["Age"],
+    bins=[0, 18, 35, 50, 65, 100],
+    labels=["0-18", "19-35", "36-50", "51-65", "Above 65"],
+    include_lowest=True
+)
+
+# 4. Display the new features
+print("\nNew Feature Sample:")
+print(
+    cleaned[
+        ["Age", "Age Group", "Admission Month",
+         "Stay Days", "Length of Stay"]
+    ].head(10)
+)
+
+# 5. Validate new features
+print("\nMissing Values in New Features:")
+print(
+    cleaned[
+        ["Admission Month", "Length of Stay", "Age Group"]
+    ].isnull().sum()
+)
+
+print("\nAdmission Month Values:")
+print(sorted(cleaned["Admission Month"].dropna().unique()))
+
+print("\nAge Group Counts:")
+print(cleaned["Age Group"].value_counts().sort_index())
