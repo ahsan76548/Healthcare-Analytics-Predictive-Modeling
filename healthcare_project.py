@@ -1,256 +1,249 @@
-import numpy as np
-import pandas as pd
+# Healthcare Analytics & Predictive Modeling Using Machine Learning
 
-# STEP 1: Load the original dataset
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+from sklearn.metrics import precision_score, recall_score, f1_score
+from sklearn.metrics import ConfusionMatrixDisplay
+
+#  Load the dataset
 data = pd.read_csv("healthcare_dataset.csv")
 
-# STEP 2: Check the dataset
-print("===== DATASET INFORMATION =====")
-
-print("\nDataset Shape:")
-print(data.shape)
-print("\nFirst 5 Rows:")
+print("First 5 rows:")
 print(data.head())
-print("\nColumn Names:")
-print(data.columns.tolist())
-print("\nData Types:")
-print(data.dtypes)
+
+print("\nDataset information:")
+data.info()
+
 print("\nStatistical Summary:")
-print(data.describe(include="all"))
+print(data.describe())
 
+print("\nDataset shape:")
+print(data.shape)
 
-# STEP 3: Check data quality
-print("\n===== DATA QUALITY CHECKS =====")
-
-print("\nMissing Values:")
+print("\nMissing values:")
 print(data.isnull().sum())
-print("\nDuplicate Rows:")
-print(data.duplicated().sum())
 
-# Check text formatting
-print("\nText Formatting Check:")
+print("\nDuplicate rows:", data.duplicated().sum())
+
+#  Data cleaning
+data.columns = data.columns.str.strip()
+
 for col in data.select_dtypes(include="object").columns:
-    print(col, "Extra spaces:", data[col].str.strip().ne(data[col]).sum())
+    data[col] = data[col].str.strip()
 
-# Check categorical values
-print("\nCategory Values:")
-for col in ["Gender", "Blood Type", "Medical Condition",
-            "Admission Type", "Medication", "Test Results"]:
-    print(col, ":", data[col].unique())
+data = data.drop_duplicates()
 
-# Check date values
-admission_date = pd.to_datetime(
+data["Age"] = pd.to_numeric(data["Age"], errors="coerce")
+data["Billing Amount"] = pd.to_numeric(
+    data["Billing Amount"], errors="coerce")
+
+data["Date of Admission"] = pd.to_datetime(
     data["Date of Admission"], errors="coerce")
-discharge_date = pd.to_datetime(
+data["Discharge Date"] = pd.to_datetime(
     data["Discharge Date"], errors="coerce")
 
-print("Invalid Admission Dates:", admission_date.isnull().sum())
-print("Invalid Discharge Dates:", discharge_date.isnull().sum())
-print("Discharge Before Admission:", (discharge_date < admission_date).sum())
+data = data.dropna(subset=[
+    "Age", "Billing Amount", "Date of Admission",
+    "Discharge Date", "Test Results"])
 
-# Check numerical values
-print("\nNumerical Checks:")
-print("Negative Age:", (data["Age"] < 0).sum())
-print("Negative Billing:", (data["Billing Amount"] < 0).sum())
-print("Zero Billing:", (data["Billing Amount"] == 0).sum())
+data = data[
+    (data["Age"].between(0, 120)) &
+    (data["Billing Amount"] >= 0) &
+    (data["Discharge Date"] >= data["Date of Admission"])
+].copy()
 
-# STEP 4: Clean the dataset
-cleaned = data.copy()
+print("\nShape after cleaning:", data.shape)
+print("\nMissing values after cleaning:")
+print(data.isnull().sum())
 
-# Remove duplicate rows
-cleaned = cleaned.drop_duplicates()
+#  Feature engineering
+data["Admission Month"] = data["Date of Admission"].dt.month
+data["Length of Stay"] = (
+    data["Discharge Date"] - data["Date of Admission"]).dt.days
 
-# Remove extra spaces from text columns
-for col in cleaned.select_dtypes(include="object").columns:
-    cleaned[col] = cleaned[col].str.strip()
+print("\nLength of stay summary:")
+print(data["Length of Stay"].describe())
 
-# Standardize patient names
-cleaned["Name"] = cleaned["Name"].str.title()
+#  EDA - (Exploratory Data Analysis)
+# Objective 1: Age and gender
+print("\nObjective 1: Age by gender")
+print(data.groupby("Gender")["Age"].agg(["count", "mean", "median"]))
 
-# STEP 5: Verify cleaning results
-print("\n===== DATA CLEANING RESULTS =====")
+plt.figure(figsize=(7, 4))
+plt.hist(data["Age"], bins=15, edgecolor="black")
+plt.title("Patient Age Distribution")
+plt.xlabel("Age")
+plt.ylabel("Number of Patients")
+plt.tight_layout()
+plt.show()
 
-print("Original Rows:", len(data))
-print("Rows After Cleaning:", len(cleaned))
-print("Duplicates Remaining:", cleaned.duplicated().sum())
+#  Objective 2: Medical conditions
+print("\nObjective 2: Medical condition counts")
+print(data["Medical Condition"].value_counts())
 
-# STEP 6: Save the cleaned dataset
-cleaned.to_csv("healthcare_cleaned.csv", index=False)
+plt.figure(figsize=(8, 4))
+sns.countplot(data=data, x="Medical Condition",
+              order=data["Medical Condition"].value_counts().index)
+plt.title("Medical Condition Distribution")
+plt.xticks(rotation=30)
+plt.tight_layout()
+plt.show()
 
-print("\nFinal Dataset Shape:")
-print(cleaned.shape)
+#  Objective 3: Billing analysis
+print("\nObjective 4: Average billing by medical condition")
+print(data.groupby("Medical Condition")["Billing Amount"].mean().sort_values(
+    ascending=False))
 
-print("\nCleaned dataset saved successfully!")
+plt.figure(figsize=(8, 4))
+sns.barplot(data=data, x="Medical Condition", y="Billing Amount",errorbar=None)
+plt.title("Average Billing by Medical Condition")
+plt.xticks(rotation=30)
+plt.tight_layout()
+plt.show()
 
-# STEP 7: Analyze negative billing amounts
-print("\n===== NEGATIVE BILLING ANALYSIS =====")
-negative_bills = cleaned[cleaned["Billing Amount"] < 0]
-print("Negative billing records:", len(negative_bills))
-print("\nSample negative billing records:")
-print(
-    negative_bills[
-        ["Age", "Medical Condition", "Billing Amount"]].head(10) )
-print("\nNegative billing summary:")
-print(negative_bills["Billing Amount"].describe())
+#  Objective 4: Test results
+print("\nObjective 5: Test result counts")
+print(data["Test Results"].value_counts())
 
-# STEP 8: Check details of negative billing records
-print("\n===== NEGATIVE BILLING DETAILS =====")
-negative_bills = cleaned[cleaned["Billing Amount"] < 0]
-print("\nNegative billing by admission type:")
-print(negative_bills["Admission Type"].value_counts())
-print("\nNegative billing by insurance provider:")
-print(negative_bills["Insurance Provider"].value_counts())
-print("\nNegative billing by test results:")
-print(negative_bills["Test Results"].value_counts())
-print("\nBilling amount by admission type:")
-print(
-    negative_bills.groupby("Admission Type")["Billing Amount"]
-    .agg(["count", "mean", "min", "max"]) )
+print("\nTest results by medical condition (%)")
+print((pd.crosstab(data["Medical Condition"], data["Test Results"],
+                   normalize="index") * 100).round(2))
 
-## EDA 
+plt.figure(figsize=(7, 4))
+sns.countplot(data=data, x="Test Results")
+plt.title("Test Results Distribution")
+plt.tight_layout()
+plt.show()
 
-# STEP 9: Exploratory Data Analysis (EDA)
+#  Objective 5: Length of Stay Analysis
+print("\nLength of Stay Counts:")
+print(data["Length of Stay"].value_counts().sort_index())
 
-# 1. Patient Age and Gender
-print("\n===== AGE AND GENDER ANALYSIS =====")
+plt.figure(figsize=(7, 4))
+sns.histplot(data=data, x="Length of Stay", bins=20)
+plt.title("Hospital Length of Stay")
+plt.xlabel("Length of Stay (Days)")
+plt.ylabel("Number of Patients")
+plt.tight_layout()
+plt.show()
 
-print("\nAge Summary:")
-print(cleaned["Age"].describe())
 
-print("\nGender Distribution:")
-print(cleaned["Gender"].value_counts())
+# STEP 9: Machine Learning
+# Target: predict Test Results (classification)
+# Select input features
+X = data[[
+    "Age", "Admission Month", "Gender", "Blood Type",
+    "Medical Condition", "Insurance Provider",
+    "Admission Type", "Medication"
+]]
 
-print("\nGender Percentage:")
-print((cleaned["Gender"].value_counts(normalize=True) * 100).round(2))
+y = data["Test Results"]
 
-age_groups = pd.cut(
-    cleaned["Age"],
-    bins=[0, 18, 35, 50, 65, 100],
-    labels=["0-18", "19-35", "36-50", "51-65", "Above 65"])
+# Convert text categories into numbers
+X = pd.get_dummies(X, drop_first=False)
 
-print("\nAge Group Distribution:")
-print(age_groups.value_counts().sort_index())
+# Split data into training and testing parts
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, 
+                                                    random_state=42, stratify=y)
 
-# 2. Medical Conditions
-print("\n===== MEDICAL CONDITION ANALYSIS =====")
+# Scale features for Logistic Regression and SVM
+sc = StandardScaler()
+X_train = sc.fit_transform(X_train)
+X_test = sc.transform(X_test)
 
-print(cleaned["Medical Condition"].value_counts())
+# Four machine learning models
+models = {
+    "Logistic Regression": LogisticRegression(max_iter=1000),
+    "Decision Tree": DecisionTreeClassifier(max_depth=10, random_state=42),
+    "Random Forest": RandomForestClassifier(
+        n_estimators=100, max_depth=12, random_state=42
+    ),
+    "SVM": SVC()
+}
 
-print("\nAverage Age by Medical Condition:")
-print(cleaned.groupby("Medical Condition")["Age"].mean().round(2))
+results = []
 
-# 3. Admission Type
-print("\n===== ADMISSION TYPE ANALYSIS =====")
+# Train and evaluate each model
+for name, model in models.items():
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
 
-print(cleaned["Admission Type"].value_counts())
+    accuracy = accuracy_score(y_test, y_pred)
+    precision = precision_score(
+        y_test, y_pred, average="macro", zero_division=0
+    )
+    recall = recall_score(
+        y_test, y_pred, average="macro", zero_division=0
+    )
+    f1 = f1_score(
+        y_test, y_pred, average="macro", zero_division=0
+    )
 
-print("\nAverage Billing by Admission Type:")
-print(
-    cleaned.groupby("Admission Type")["Billing Amount"]
-    .mean()
-    .round(2))
+    results.append([name, accuracy, precision, recall, f1])
 
-# 4. Hospital Stay Duration
-print("\n===== HOSPITAL STAY ANALYSIS =====")
+    print("\nModel:", name)
+    print("Confusion Matrix:")
+    print(confusion_matrix(y_test, y_pred))
+    print("Accuracy:", round(accuracy, 4))
+    print("Classification Report:")
+    print(classification_report(y_test, y_pred, zero_division=0))
+    
+# Confusion Matrix Graph
+ConfusionMatrixDisplay.from_predictions(y_test, y_pred)
+plt.title("Confusion Matrix - " + name)
+plt.tight_layout()
+plt.show()
 
-admission_date = pd.to_datetime(
-    cleaned["Date of Admission"], errors="coerce")
-discharge_date = pd.to_datetime(
-    cleaned["Discharge Date"], errors="coerce")
-
-cleaned["Stay Days"] = (discharge_date - admission_date).dt.days
-
-print(cleaned["Stay Days"].describe())
-
-print("\nInvalid Stay Records:")
-print((cleaned["Stay Days"] < 0).sum())
-
-print("Missing Stay Values:", cleaned["Stay Days"].isnull().sum())
-print("Zero-Day Stays:", (cleaned["Stay Days"] == 0).sum())
-
-# 5. Billing Analysis
-print("\n===== BILLING ANALYSIS =====")
-
-print(cleaned["Billing Amount"].describe())
-
-print("\nNegative Billing:", (cleaned["Billing Amount"] < 0).sum())
-print("Zero Billing:", (cleaned["Billing Amount"] == 0).sum())
-
-# 6. Insurance Provider Analysis
-print("\n===== INSURANCE PROVIDER ANALYSIS =====")
-
-print("\nPatient Records by Insurance Provider:")
-print(cleaned["Insurance Provider"].value_counts())
-
-print("\nBilling by Insurance Provider:")
-print(
-    cleaned.groupby("Insurance Provider")["Billing Amount"]
-    .agg(["count", "mean", "median"])
-    .round(2)
+# Compare all models
+result_table = pd.DataFrame(
+    results,
+    columns=["Model", "Accuracy", "Precision", "Recall", "F1 Score"]
 )
 
-# 7. Test Results
-print("\n===== TEST RESULT ANALYSIS =====")
-
-print(cleaned["Test Results"].value_counts())
-
-print("\nTest Result Percentage:")
-print((cleaned["Test Results"].value_counts(normalize=True) * 100).round(2))
-
-# 8. Feature Relationships
-print("\n===== FEATURE RELATIONSHIPS =====")
-
-print("\nAverage Billing by Medical Condition:")
-print(
-    cleaned.groupby("Medical Condition")["Billing Amount"]
-    .mean()
-    .round(2))
-
-print("\nAverage Stay by Admission Type:")
-print(cleaned.groupby("Admission Type")["Stay Days"].mean().round(2))
-
-print("\nNumerical Correlation:")
-print(cleaned[["Age", "Billing Amount", "Stay Days"]].corr().round(3))
-
-## STEP 10: Feature Engineering
-
-print("\n===== FEATURE ENGINEERING =====")
-
-# 1. Create Admission Month
-cleaned["Admission Month"] = pd.to_datetime(
-    cleaned["Date of Admission"], errors="coerce"
-).dt.month
-
-# 2. Reuse Stay Days calculated in EDA
-cleaned["Length of Stay"] = cleaned["Stay Days"]
-
-# 3. Create Age Groups
-cleaned["Age Group"] = pd.cut(
-    cleaned["Age"],
-    bins=[0, 18, 35, 50, 65, 100],
-    labels=["0-18", "19-35", "36-50", "51-65", "Above 65"],
-    include_lowest=True
+result_table = result_table.sort_values(
+    by="F1 Score", ascending=False
 )
 
-# 4. Display the new features
-print("\nNew Feature Sample:")
-print(
-    cleaned[
-        ["Age", "Age Group", "Admission Month",
-         "Stay Days", "Length of Stay"]
-    ].head(10)
-)
+print("\nModel Comparison:")
+print(result_table.to_string(index=False))
 
-# 5. Validate new features
-print("\nMissing Values in New Features:")
-print(
-    cleaned[
-        ["Admission Month", "Length of Stay", "Age Group"]
-    ].isnull().sum()
-)
+# Graph 1: Accuracy Comparison
+plt.figure(figsize=(8, 4))
+plt.bar(result_table["Model"], result_table["Accuracy"])
+plt.title("Model Accuracy Comparison")
+plt.xlabel("Machine Learning Models")
+plt.ylabel("Accuracy")
+plt.xticks(rotation=20)
+plt.tight_layout()
+plt.show()
 
-print("\nAdmission Month Values:")
-print(sorted(cleaned["Admission Month"].dropna().unique()))
+# Graph 2: F1 Score Comparison
+plt.figure(figsize=(8, 4))
+plt.bar(result_table["Model"], result_table["F1 Score"])
+plt.title("Model F1 Score Comparison")
+plt.xlabel("Machine Learning Models")
+plt.ylabel("Macro F1 Score")
+plt.xticks(rotation=20)
+plt.tight_layout()
+plt.show()
 
-print("\nAge Group Counts:")
-print(cleaned["Age Group"].value_counts().sort_index())
+# Best model based on Macro F1 Score
+best_model = result_table.iloc[0]
+
+print("\nBest Model:", best_model["Model"])
+print("Best Macro F1 Score:", round(best_model["F1 Score"], 4))
+
+result_table.to_csv("model_comparison.csv", index=False)
+
+print("\nCompleted.")
+
